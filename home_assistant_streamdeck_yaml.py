@@ -1244,6 +1244,53 @@ def _max_filter(value: float, other_value: float) -> float:
     return max(value, other_value)
 
 
+def _int_filter(value: t.Any, default: int = 0, base: int = 10) -> int:
+    """Convert the value into an integer. If the
+    conversion doesn't work it will return ``0``. You can
+    override this default using the first parameter. You
+    can also override the default base (10) in the second
+    parameter, which handles input with prefixes such as
+    0b, 0o and 0x for bases 2, 8 and 16 respectively.
+    The base is ignored for decimal numbers and non-string values.
+    """
+    try:
+        if isinstance(value, str):
+            return int(value, base)
+
+        return int(value)
+    except (TypeError, ValueError):
+        # this quirk is necessary so that "42.23"|int gives 42.
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return default
+
+
+def _round_filter(
+    value: float,
+    precision: int = 0,
+    method: 'te.Literal["common", "ceil", "floor"]' = "common",
+) -> float:
+    """Round the number to a given precision. The first
+    parameter specifies the precision (default is ``0``), the
+    second the rounding method:
+
+    - ``'common'`` rounds either up or down
+    - ``'ceil'`` always rounds up
+    - ``'floor'`` always rounds down
+
+    If you don't specify a method ``'common'`` is used.
+    """
+    if method not in {"common", "ceil", "floor"}:
+        raise FilterArgumentError("method must be common, ceil or floor")
+
+    if method == "common":
+        return round(value, precision)
+
+    func = getattr(math, method)
+    return t.cast(float, func(value * (10**precision)) / (10**precision))
+
+
 def _render_jinja(text: str, complete_state: StateDict) -> str:
     """Render a Jinja template."""
     if not isinstance(text, str):
@@ -1257,6 +1304,8 @@ def _render_jinja(text: str, complete_state: StateDict) -> str:
         )
         env.filters["min"] = _min_filter
         env.filters["max"] = _max_filter
+        env.filters["int"] = _int_filter
+        env.filters["round"] = _round_filter
         template = env.from_string(text)
         return template.render(
             min=min,
