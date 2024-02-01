@@ -1282,7 +1282,7 @@ def _round_filter(
     If you don't specify a method ``'common'`` is used.
     """
     if method not in {"common", "ceil", "floor"}:
-        raise FilterArgumentError("method must be common, ceil or floor")
+        raise AssertionError("method must be common, ceil or floor")
 
     if method == "common":
         return round(value, precision)
